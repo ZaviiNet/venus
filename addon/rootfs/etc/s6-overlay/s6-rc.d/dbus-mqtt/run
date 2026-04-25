@@ -15,5 +15,5 @@ if [ ! -f "${CONF}" ]; then
     echo "[WARN] /etc/dbus-mqtt/config.ini not found; dbus-mqtt may use defaults."
 fi
 
-exec python3 /opt/victron/dbus-mqtt/dbus-mqtt.py \
+exec python3 /opt/victron/dbus-mqtt/dbus_mqtt.py \
     2>&1
