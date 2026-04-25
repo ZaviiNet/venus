@@ -1,3 +1,5 @@
+[![Build and Test Venus OS Addon](https://github.com/ZaviiNet/venus/actions/workflows/addon-ci.yml/badge.svg)](https://github.com/ZaviiNet/venus/actions/workflows/addon-ci.yml)
+
 ## Venus OS: the Victron Energy Unix like distro with a linux kernel
 
 The problematic part with this name is that it is from the Roman
