@@ -1,3 +1,6 @@
+# ── Global ARGs must go at the VERY TOP of the file ──────────────────────────
+ARG BUILD_FROM
+
 # ── Stage 1: clone Victron open-source services ──────────────────────────────
 FROM debian:bookworm-slim AS builder
 
@@ -9,8 +12,6 @@ RUN apt-get update \
 
 WORKDIR /opt/victron
 
-# Pin each service to a known-good commit for reproducible builds.
-# Update these SHAs when upgrading; the ARGs allow CI overrides.
 ARG VELIB_PYTHON_REF=master
 ARG DBUS_SYSTEMCALC_PY_REF=master
 ARG DBUS_MQTT_REF=master
@@ -30,9 +31,11 @@ RUN git clone --depth=1 --branch "${VELIB_PYTHON_REF}" \
     || true   # dbus-modbus-client is optional; continue if unavailable
 
 # ── Stage 2: runtime image ────────────────────────────────────────────────────
-# BUILD_FROM is injected by build.yaml / the HA builder per target arch.
-ARG BUILD_FROM
+# Now Docker will correctly substitute this because it was declared at line 2
 FROM ${BUILD_FROM}
+
+# We must declare BUILD_ARCH inside this stage so it can be used in the LABEL later
+ARG BUILD_ARCH
 
 # ── System packages ───────────────────────────────────────────────────────────
 RUN apt-get update \
@@ -55,8 +58,6 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Python packages not in apt ────────────────────────────────────────────────
-# paho-mqtt: required by dbus-mqtt
-# pymodbus: required by dbus-modbus-client (Modbus TCP server, optional)
 RUN pip3 install --break-system-packages --no-cache-dir \
     "paho-mqtt>=1.6,<2.0" \
     "pymodbus>=3.6,<4.0"
@@ -64,7 +65,6 @@ RUN pip3 install --break-system-packages --no-cache-dir \
 # ── Victron services (copied from builder stage) ──────────────────────────────
 COPY --from=builder /opt/victron /opt/victron
 
-# All Victron daemons import from velib_python; export PYTHONPATH globally.
 ENV PYTHONPATH=/opt/victron/velib_python
 
 # ── rootfs overlay (D-Bus config, s6 services, helper scripts) ───────────────
