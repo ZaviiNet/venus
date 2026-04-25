@@ -23,7 +23,7 @@ ingress_port: 8088
 
 # External ports: MQTT (required) and optional Modbus TCP.
 ports:
-  1883/tcp: 1883
+  1883/tcp: null
   502/tcp: null
 
 # Allow access to UART/serial devices on the host (VE.Direct, VE.Bus).
