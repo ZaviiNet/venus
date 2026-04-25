@@ -26,9 +26,9 @@ RUN git clone --depth=1 --branch "${VELIB_PYTHON_REF}" \
         https://github.com/victronenergy/dbus-mqtt.git \
     && git clone --depth=1 --branch "${DBUS_RECORDER_REF}" \
         https://github.com/victronenergy/dbus-recorder.git \
-    && git clone --depth=1 --branch "${DBUS_MODBUS_CLIENT_REF}" \
+    && { git clone --depth=1 --branch "${DBUS_MODBUS_CLIENT_REF}" \
         https://github.com/victronenergy/dbus-modbus-client.git \
-    || true   # dbus-modbus-client is optional; continue if unavailable
+        || true; }   # dbus-modbus-client is optional; continue if unavailable
 
 # ── Stage 2: runtime image ────────────────────────────────────────────────────
 # Now Docker will correctly substitute this because it was declared at line 2
@@ -50,6 +50,7 @@ RUN apt-get update \
         python3-pip \
         gir1.2-glib-2.0 \
         libglib2.0-0 \
+        python3-lxml \
         iproute2 \
         netcat-openbsd \
         socat \
