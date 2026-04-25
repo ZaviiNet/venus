@@ -1,5 +1,11 @@
 # ── Global ARGs must go at the VERY TOP of the file ──────────────────────────
-ARG BUILD_FROM
+# Default to amd64; the HA builder overrides BUILD_FROM per-arch at build time.
+# Arch-specific images (aarch64/armhf/armv7) are listed here for reference:
+#   aarch64: ghcr.io/home-assistant/aarch64-base-debian:bookworm
+#   amd64:   ghcr.io/home-assistant/amd64-base-debian:bookworm
+#   armhf:   ghcr.io/home-assistant/armhf-base-debian:bookworm
+#   armv7:   ghcr.io/home-assistant/armv7-base-debian:bookworm
+ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:bookworm
 
 # ── Stage 1: clone Victron open-source services ──────────────────────────────
 FROM debian:bookworm-slim AS builder
