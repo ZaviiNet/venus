@@ -44,6 +44,8 @@ apparmor: true
 
 # Allow bashio to call the Supervisor API (e.g. for log-level initialisation).
 hassio_api: true
+# 'default' role is required to read /addons/self/options/config without 403.
+hassio_role: default
 
 # ── User-configurable options ─────────────────────────────────────────────────
 options:

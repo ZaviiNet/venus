@@ -33,6 +33,7 @@ bashio::log.info "Starting Venus OS addon initialisation..."
 mkdir -p /run/dbus
 mkdir -p /data/mosquitto/db
 mkdir -p /data/venus
+mkdir -p /data/conf
 mkdir -p /etc/venus
 mkdir -p /etc/dbus-mqtt
 mkdir -p /var/log/venus
