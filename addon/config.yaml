@@ -42,6 +42,9 @@ capabilities:
 # AppArmor profile (addon/apparmor.txt).
 apparmor: true
 
+# Allow bashio to call the Supervisor API (e.g. for log-level initialisation).
+hassio_api: true
+
 # ── User-configurable options ─────────────────────────────────────────────────
 options:
   # VRM Portal ID printed on your GX device.  Leave blank to auto-generate.
