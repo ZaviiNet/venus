@@ -5,6 +5,8 @@ mythology and not, as most of our products, from the Greek. Phoenix
 is already taken though by a charger...
 
 This readme documents how to compile and build Venus OS from source.
+It also covers the **Home Assistant Add-on** (Docker container) that runs the
+key Venus OS services inside Home Assistant OS without compiling anything.
 
 First, make sure that that is really what you want or need. It takes
 several hours to compile, lots of diskspace and results in an
@@ -18,6 +20,133 @@ full Venus OS from source.
 
 Make sure to read the [Venus OS wiki](https://github.com/victronenergy/venus/wiki)
 first.
+
+---
+
+## Home Assistant Add-on (Docker container)
+
+> **New!** You no longer need to build Venus OS from source to use its core
+> services in Home Assistant. The `addon/` directory in this repository ships a
+> fully-featured HA Add-on that runs inside Docker on any Home Assistant OS
+> installation.
+
+### What the add-on provides
+
+| Service | Role |
+|---|---|
+| **dbus-daemon** | Private D-Bus system bus inside the container |
+| **mosquitto** | MQTT broker — HA connects on port **1883** |
+| **dbus-systemcalc-py** | Aggregates device values (SOC, power, voltage, …) |
+| **dbus-mqtt** | Bridges D-Bus → MQTT with VRM-compatible `N/<portalid>/#` topics |
+
+Home Assistant's built-in **MQTT integration** picks up all Victron entities
+automatically via MQTT auto-discovery.
+
+### Supported architectures
+
+`aarch64` · `amd64` · `armhf` · `armv7`
+
+(Raspberry Pi 3/4/5, Intel NUC, ODROID, and most other HA-supported hardware.)
+
+### Installing the add-on in Home Assistant
+
+1. **Add this repository to Home Assistant:**
+   - Go to **Settings → Add-ons → Add-on Store**.
+   - Click the ⋮ menu (top-right) → **Repositories**.
+   - Paste `https://github.com/ZaviiNet/venus` and click **Add**.
+
+2. **Install the "Venus OS" add-on** that now appears in the store.
+
+3. **Configure the add-on** (Settings → Add-ons → Venus OS → Configuration):
+
+   | Option | Description | Default |
+   |---|---|---|
+   | `vrm_id` | Your 12-char GX device VRM Portal ID (leave blank to auto-generate) | _(auto)_ |
+   | `mqtt_username` | MQTT broker username | _(anonymous)_ |
+   | `mqtt_password` | MQTT broker password | _(anonymous)_ |
+   | `vedirect_port` | Serial device for a VE.Direct adapter, e.g. `/dev/ttyUSB0` | _(disabled)_ |
+   | `vedirect_baud` | Baud rate for the VE.Direct port | `19200` |
+   | `vecan_interface` | Linux CAN interface, e.g. `can0` | _(disabled)_ |
+   | `vrm_token` | VRM Portal API token for cloud connectivity | _(disabled)_ |
+   | `modbus_enabled` | Start the Modbus TCP server on port 502 | `false` |
+   | `log_level` | Verbosity (`debug`/`info`/`warning`/`error`) | `info` |
+
+4. **Start the add-on.**
+
+5. **Connect the MQTT integration** (if not already set up):
+   - Go to **Settings → Devices & Services → Add Integration → MQTT**.
+   - Broker: `localhost` (or your HA host IP), Port: `1883`.
+   - Supply the same credentials you configured in step 3.
+   - Victron entities appear automatically under *Devices* once the add-on is running.
+
+### Hardware wiring
+
+**VE.Direct (USB adapter)**
+Plug a [VE.Direct to USB interface](https://www.victronenergy.com/accessories/ve-direct-to-usb-interface)
+into the HA host (typically `/dev/ttyUSB0`), then set `vedirect_port: /dev/ttyUSB0`
+and enable **UART** access in the add-on's *Devices* tab.
+
+**VE.Can (CAN hat / USB adapter)**
+Load the kernel module on the HA OS host (e.g. `mcp251x`, `gs_usb`), verify
+`ip link show can0` works, then set `vecan_interface: can0`. The add-on brings
+the interface up at 250 kbps automatically.
+
+**VE.Bus / MultiPlus / Quattro**
+Connect a [MK3-USB interface](https://www.victronenergy.com/accessories/mk3-usb).
+The `mk2dbus` daemon is proprietary and not included; see
+[Venus OS Large](https://github.com/victronenergy/venus/wiki/venus-os-large) for
+installing it separately.
+
+### Running with plain Docker (without Home Assistant)
+
+The image can also be run standalone for development or testing:
+
+```bash
+docker build \
+    --build-arg BUILD_FROM=debian:bookworm-slim \
+    -t venus-os-addon \
+    ./addon
+
+docker run --rm \
+    --privileged \
+    -v "$(pwd)/data:/data" \
+    -p 1883:1883 \
+    -e SUPERVISOR_TOKEN="" \
+    venus-os-addon
+```
+
+> **Note:** `--privileged` is required to allow D-Bus and CAN interface
+> operations. In production, use the HA Add-on which applies a scoped AppArmor
+> profile instead.
+
+### Add-on internals
+
+```
+addon/
+├── Dockerfile          # Multi-stage build (builder → HA base image)
+├── build.yaml          # Per-arch base images (ghcr.io/home-assistant/…-base-debian:bookworm)
+├── config.yaml         # HA add-on manifest (ports, options schema, capabilities)
+├── apparmor.txt        # AppArmor security profile
+├── DOCS.md             # Full user documentation
+├── CHANGELOG.md        # Release history
+└── rootfs/
+    ├── run.sh                           # Init script: reads options.json, writes runtime config
+    └── etc/
+        ├── dbus-1/                      # D-Bus policy (permissive for container use)
+        └── s6-overlay/s6-rc.d/
+            ├── init-addon/              # Oneshot: runs run.sh before services start
+            ├── dbus/                    # dbus-daemon longrun
+            ├── mosquitto/               # Mosquitto MQTT broker longrun
+            ├── dbus-systemcalc-py/      # Venus system calculator longrun
+            └── dbus-mqtt/               # D-Bus ↔ MQTT bridge longrun
+```
+
+For full configuration details, known limitations, and troubleshooting see
+[`addon/DOCS.md`](addon/DOCS.md).
+
+---
+
+## Building Venus OS from source
 
 So, if you insist: this repo is the starting point to build Venus.
 It contains wrapper functions around bitbake and git to fetch, and
