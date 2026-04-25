@@ -120,7 +120,11 @@ jobs:
         id: meta
         run: |
           VERSION=$(python3 -c "import yaml; print(yaml.safe_load(open('addon/config.yaml'))['version'])")
-          REPO="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          
+          # Fetch the raw repo string and convert it to lowercase
+          RAW_REPO="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          REPO="${RAW_REPO,,}"
+          
           ARCH="${{ matrix.arch }}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
