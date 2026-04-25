@@ -44,8 +44,8 @@ profile venus_os flags=(attach_disconnected,mediate_deleted) {
   /dev/can*        rw,
 
   # ── Python / mosquitto / dbus-daemon execution ────────────────────────────
-  /usr/bin/python3*       Cx -> &unconfined,
-  /usr/bin/mosquitto      Cx -> &unconfined,
-  /usr/bin/dbus-daemon    Cx -> &unconfined,
-  /command/**             Cx -> &unconfined,
+  /usr/bin/python3*       ix,
+  /usr/bin/mosquitto      ix,
+  /usr/bin/dbus-daemon    ix,
+  /command/**             ix,
 }
