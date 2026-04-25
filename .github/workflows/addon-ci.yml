@@ -202,8 +202,9 @@ jobs:
         run: |
           echo "Waiting for Mosquitto to start..."
           for i in $(seq 1 20); do
-            if nc -z localhost 11883 2>/dev/null; then
-              echo "✓ MQTT port 11883 is reachable (attempt ${i})"
+            # Run netcat INSIDE the container to bypass docker-proxy illusions
+            if docker exec venus-os-test nc -z localhost 1883 2>/dev/null; then
+              echo "✓ MQTT port 1883 is reachable inside container (attempt ${i})"
               exit 0
             fi
             sleep 3
