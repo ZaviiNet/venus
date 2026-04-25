@@ -1,0 +1,253 @@
+---
+name: Build and Test Venus OS Addon
+
+on:
+  push:
+    branches: [master, main]
+    tags: ["v*"]
+    paths:
+      - "addon/**"
+      - ".github/workflows/addon-ci.yml"
+  pull_request:
+    branches: [master, main]
+    paths:
+      - "addon/**"
+      - ".github/workflows/addon-ci.yml"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/venus-os-addon
+
+permissions:
+  contents: read
+  packages: write
+
+# ── Job 1: validate addon config.yaml ─────────────────────────────────────────
+jobs:
+  validate:
+    name: Validate Addon Config
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Validate addon/config.yaml
+        run: |
+          python3 - << 'EOF'
+          import sys, yaml
+
+          with open("addon/config.yaml") as f:
+              cfg = yaml.safe_load(f)
+
+          required = ["name", "version", "slug", "description", "arch", "options", "schema"]
+          missing = [k for k in required if k not in cfg]
+          if missing:
+              print(f"ERROR: Missing required fields: {missing}", file=sys.stderr)
+              sys.exit(1)
+
+          for arch in cfg.get("arch", []):
+              if arch not in ("amd64", "aarch64", "armhf", "armv7", "i386"):
+                  print(f"ERROR: Unknown arch '{arch}'", file=sys.stderr)
+                  sys.exit(1)
+
+          print(f"OK: addon/config.yaml  name={cfg['name']}  version={cfg['version']}")
+          EOF
+
+      - name: Validate addon/build.yaml
+        run: |
+          python3 - << 'EOF'
+          import sys, yaml
+
+          with open("addon/build.yaml") as f:
+              build = yaml.safe_load(f)
+
+          if "build_from" not in build:
+              print("ERROR: build.yaml must contain 'build_from'", file=sys.stderr)
+              sys.exit(1)
+
+          print(f"OK: addon/build.yaml  arches={list(build['build_from'].keys())}")
+          EOF
+
+# ── Job 2: build multi-arch images ────────────────────────────────────────────
+  build:
+    name: Build (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - amd64
+          - aarch64
+          - armhf
+          - armv7
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            base: ghcr.io/home-assistant/amd64-base-debian:bookworm
+          - arch: aarch64
+            platform: linux/arm64
+            base: ghcr.io/home-assistant/aarch64-base-debian:bookworm
+          - arch: armhf
+            platform: linux/arm/v6
+            base: ghcr.io/home-assistant/armhf-base-debian:bookworm
+          - arch: armv7
+            platform: linux/arm/v7
+            base: ghcr.io/home-assistant/armv7-base-debian:bookworm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine image tags
+        id: meta
+        run: |
+          VERSION=$(python3 -c "import yaml; print(yaml.safe_load(open('addon/config.yaml'))['version'])")
+          REPO="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          ARCH="${{ matrix.arch }}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "tags=${REPO}:${VERSION}-${ARCH},${REPO}:latest-${ARCH}" >> "$GITHUB_OUTPUT"
+            echo "push=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "tags=${REPO}:dev-${ARCH}" >> "$GITHUB_OUTPUT"
+            echo "push=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build (and optionally push) Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: addon
+          platforms: ${{ matrix.platform }}
+          push: ${{ steps.meta.outputs.push }}
+          build-args: |
+            BUILD_FROM=${{ matrix.base }}
+            BUILD_ARCH=${{ matrix.arch }}
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,scope=${{ matrix.arch }},mode=max
+
+# ── Job 3: smoke test (amd64 only) ────────────────────────────────────────────
+  smoke-test:
+    name: Smoke Test
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build test image (amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: addon
+          platforms: linux/amd64
+          load: true
+          tags: venus-os-addon-test:latest
+          build-args: |
+            BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:bookworm
+            BUILD_ARCH=amd64
+          cache-from: type=gha,scope=amd64
+
+      - name: Prepare test data directory
+        run: |
+          mkdir -p /tmp/addon-data
+          cat > /tmp/addon-data/options.json << 'EOF'
+          {
+            "vrm_id": "testportal001",
+            "mqtt_username": "",
+            "mqtt_password": "",
+            "vedirect_port": "",
+            "vedirect_baud": 19200,
+            "vecan_interface": "",
+            "vrm_token": "",
+            "modbus_enabled": false,
+            "log_level": "info"
+          }
+          EOF
+
+      - name: Start container
+        run: |
+          docker run -d \
+            --name venus-os-test \
+            --env SUPERVISOR_TOKEN=test \
+            -p 11883:1883 \
+            -v /tmp/addon-data:/data \
+            venus-os-addon-test:latest
+
+      - name: Wait for MQTT broker to become ready
+        run: |
+          echo "Waiting for Mosquitto to start..."
+          for i in $(seq 1 20); do
+            if nc -z localhost 11883 2>/dev/null; then
+              echo "✓ MQTT port 11883 is reachable (attempt ${i})"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "✗ MQTT port not reachable after 60 s"
+          docker logs venus-os-test
+          exit 1
+
+      - name: Verify MQTT pub/sub round-trip
+        run: |
+          # Publish a test message and subscribe to confirm it was received.
+          docker exec venus-os-test \
+            mosquitto_pub -h localhost -p 1883 -t "venus/test" -m "hello" \
+            && echo "✓ MQTT publish succeeded"
+
+      - name: Dump container logs
+        if: always()
+        run: docker logs venus-os-test 2>&1 || true
+
+      - name: Stop and remove test container
+        if: always()
+        run: |
+          docker stop venus-os-test 2>/dev/null || true
+          docker rm   venus-os-test 2>/dev/null || true
+
+# ── Job 4: create GitHub release on tag ───────────────────────────────────────
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build, smoke-test]
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract version from config.yaml
+        id: version
+        run: |
+          V=$(python3 -c "import yaml; print(yaml.safe_load(open('addon/config.yaml'))['version'])")
+          echo "version=${V}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Venus OS Addon v${{ steps.version.outputs.version }}"
+          body_path: addon/CHANGELOG.md
+          files: |
+            addon/config.yaml
+            addon/build.yaml

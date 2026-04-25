@@ -1,0 +1,51 @@
+#include <tunables/global>
+
+profile venus_os flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+
+  # ── Files ──────────────────────────────────────────────────────────────────
+  # Grant broad file access; all processes run inside the addon container.
+  file,
+
+  # ── Signals ───────────────────────────────────────────────────────────────
+  signal (send) set=(kill,term,int,hup,cont),
+
+  # ── Network ───────────────────────────────────────────────────────────────
+  network,
+
+  # ── D-Bus ─────────────────────────────────────────────────────────────────
+  dbus,
+
+  # ── Capabilities ──────────────────────────────────────────────────────────
+  # NET_ADMIN: bring up CAN interfaces (ip link set can0 up type can …)
+  # NET_RAW:   raw CAN socket access
+  # SYS_RAWIO: optional, needed by some CAN adapters
+  # DAC_OVERRIDE: write to /run and /sys paths
+  capability net_admin,
+  capability net_raw,
+  capability dac_override,
+  capability kill,
+  capability setuid,
+  capability setgid,
+
+  # ── /proc & /sys ──────────────────────────────────────────────────────────
+  @{PROC}/** r,
+  /sys/** r,
+  /sys/class/net/** rw,
+
+  # ── Serial / UART devices (VE.Direct, VE.Bus) ─────────────────────────────
+  /dev/tty*        rw,
+  /dev/ttyUSB*     rw,
+  /dev/ttyACM*     rw,
+  /dev/ttyS*       rw,
+  /dev/serial/**   rw,
+
+  # ── CAN devices ───────────────────────────────────────────────────────────
+  /dev/can*        rw,
+
+  # ── Python / mosquitto / dbus-daemon execution ────────────────────────────
+  /usr/bin/python3*       Cx -> &unconfined,
+  /usr/bin/mosquitto      Cx -> &unconfined,
+  /usr/bin/dbus-daemon    Cx -> &unconfined,
+  /command/**             Cx -> &unconfined,
+}

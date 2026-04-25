@@ -1,0 +1,10 @@
+#!/command/with-contenv bash
+# dbus-systemcalc-py: aggregates data from all Venus device services (VE.Direct,
+# VE.Can, VE.Bus) and publishes derived values (SOC, AC power, etc.) to D-Bus.
+#
+# It connects to the system bus and waits for device daemons to appear; it is
+# safe to start even when no hardware is connected yet.
+export PYTHONPATH=/opt/victron/velib_python
+
+exec python3 /opt/victron/dbus-systemcalc-py/dbus-systemcalc.py \
+    2>&1
