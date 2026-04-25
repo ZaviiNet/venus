@@ -1,0 +1,4 @@
+#!/command/with-contenv bash
+# s6-overlay oneshot "up" script.
+# Runs the addon initialisation logic (reads options.json, writes configs).
+exec /run.sh

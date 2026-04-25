@@ -1,0 +1,8 @@
+#!/command/with-contenv bash
+# Start the D-Bus system bus daemon using the Venus OS permissive config.
+# All Venus daemons connect to unix:path=/run/dbus/system_bus_socket by default.
+mkdir -p /run/dbus
+exec dbus-daemon \
+    --config-file=/etc/dbus-1/venus-system.conf \
+    --nofork \
+    2>&1

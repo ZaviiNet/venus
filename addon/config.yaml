@@ -1,0 +1,72 @@
+---
+name: "Venus OS"
+version: "1.0.0"
+slug: "venus_os"
+description: >-
+  Victron Energy Venus OS services (dbus-systemcalc-py, dbus-mqtt, Mosquitto)
+  running as a Home Assistant addon.  Bridges VE.Direct, VE.Can, and VE.Bus
+  devices to Home Assistant via MQTT auto-discovery.
+url: "https://github.com/ZaviiNet/venus"
+
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+
+# s6-overlay manages init; we do not rely on HA's built-in init wrapper.
+init: false
+
+# Expose the lightweight Venus web UI via the HA Ingress reverse proxy.
+ingress: true
+ingress_port: 8088
+
+# External ports: MQTT (required) and optional Modbus TCP.
+ports:
+  1883/tcp: 1883
+  502/tcp: null
+
+# Allow access to UART/serial devices on the host (VE.Direct, VE.Bus).
+uart: true
+
+# Persist user data (MQTT database, unique-id, certs, logs).
+map:
+  - share:rw
+
+# Extra Linux capabilities needed for CAN interface setup.
+capabilities:
+  - NET_ADMIN
+  - NET_RAW
+  - SYS_RAWIO
+
+# AppArmor profile (addon/apparmor.txt).
+apparmor: true
+
+# ── User-configurable options ─────────────────────────────────────────────────
+options:
+  # VRM Portal ID printed on your GX device.  Leave blank to auto-generate.
+  vrm_id: ""
+  # MQTT broker credentials.  Leave blank to allow anonymous connections.
+  mqtt_username: ""
+  mqtt_password: ""
+  # Serial port for a VE.Direct device, e.g. /dev/ttyUSB0
+  vedirect_port: ""
+  vedirect_baud: 19200
+  # CAN interface for VE.Can, e.g. can0
+  vecan_interface: ""
+  # VRM Portal API token for cloud connectivity (optional).
+  vrm_token: ""
+  # Enable the Modbus TCP server on port 502.
+  modbus_enabled: false
+  log_level: "info"
+
+schema:
+  vrm_id: str?
+  mqtt_username: str?
+  mqtt_password: password?
+  vedirect_port: str?
+  vedirect_baud: int?
+  vecan_interface: str?
+  vrm_token: password?
+  modbus_enabled: bool
+  log_level: list(debug|info|warning|error)
