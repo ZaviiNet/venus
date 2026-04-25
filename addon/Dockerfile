@@ -67,7 +67,8 @@ RUN apt-get update \
 # ── Python packages not in apt ────────────────────────────────────────────────
 RUN pip3 install --break-system-packages --no-cache-dir \
     "paho-mqtt>=1.6,<2.0" \
-    "pymodbus>=3.6,<4.0"
+    "pymodbus>=3.6,<4.0" \
+    "requests"
 
 # ── Victron services (copied from builder stage) ──────────────────────────────
 COPY --from=builder /opt/victron /opt/victron
