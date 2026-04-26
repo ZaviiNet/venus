@@ -5,6 +5,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.0.7] – 2026-04-26
+
+### Fixed
+- Pinned all Venus daemon run scripts to the container-private system D-Bus
+  (`unix:path=/run/dbus/system_bus_socket`) by explicitly setting
+  `DBUS_SYSTEM_BUS_ADDRESS` and unsetting `DBUS_SESSION_BUS_ADDRESS` before
+  exec'ing each Python daemon.  Without this the HA base image or supervisor
+  may inject a `DBUS_SYSTEM_BUS_ADDRESS` or `DBUS_SESSION_BUS_ADDRESS` that
+  points to the host/HA system bus; `dbus.SystemBus()` in `localsettings.py`
+  then connects to the wrong bus and crashes with a `DBusException` at line
+  1015 (`main(sys.argv[1:])`), showing the truncated traceback reported in the
+  issue.
+- Added `localsettings` as an explicit s6 dependency of `dbus-mqtt`.
+  Previously `dbus-mqtt` only depended on `mosquitto` and could start before
+  `com.victronenergy.settings` was registered on the bus, causing D-Bus
+  look-up failures during `DbusMqtt.__init__`.
+- Added the `-u` (unbuffered) flag to all `python3` invocations so that
+  `print()` output appears in the log immediately rather than being held in
+  the stdio buffer until the process exits.  This prevents the confusing
+  interleaving where `localsettings v1.76 starting up` appeared in the log
+  *after* `dbus_systemcalc` and `dbus_mqtt` startup messages.
+
+---
+
 ## [1.0.5] – 2026-04-26
 
 ### Fixed

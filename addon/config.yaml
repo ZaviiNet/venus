@@ -1,6 +1,6 @@
 ---
 name: "Venus OS"
-version: "1.0.6"
+version: "1.0.7"
 slug: "venus_os"
 description: >-
   Victron Energy Venus OS services (dbus-systemcalc-py, dbus-mqtt, Mosquitto)

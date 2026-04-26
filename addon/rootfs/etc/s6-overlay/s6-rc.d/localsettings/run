@@ -5,6 +5,14 @@
 # and the daemon crashes immediately.
 export PYTHONPATH=/opt/victron/velib_python
 
+# Force all Venus daemons to use the container-private system bus.
+# The HA base image or supervisor may inject DBUS_SYSTEM_BUS_ADDRESS or
+# DBUS_SESSION_BUS_ADDRESS pointing to the host/HA bus.  If localsettings
+# picks up those variables it calls dbus.SessionBus() (or connects to the
+# wrong system bus) and crashes with a DBusException at startup.
+unset DBUS_SESSION_BUS_ADDRESS
+export DBUS_SYSTEM_BUS_ADDRESS=unix:path=/run/dbus/system_bus_socket
+
 mkdir -p /data/conf
 
 # Wait for the D-Bus system socket to be ready before connecting.
@@ -13,6 +21,8 @@ mkdir -p /data/conf
 # tries to call dbus.SystemBus(), causing a DBusException crash.
 until [ -S /run/dbus/system_bus_socket ]; do sleep 0.1; done
 
-exec python3 /opt/victron/localsettings/localsettings.py \
+# -u: unbuffered stdout so "localsettings vX.XX starting up" appears
+# immediately in the log rather than being held until process exit.
+exec python3 -u /opt/victron/localsettings/localsettings.py \
     --path /data/conf \
     2>&1
