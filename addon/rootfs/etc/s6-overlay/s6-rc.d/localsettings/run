@@ -6,5 +6,13 @@
 export PYTHONPATH=/opt/victron/velib_python
 
 mkdir -p /data/conf
+
+# Wait for the D-Bus system socket to be ready before connecting.
+# The dbus s6 service declares itself "started" as soon as its run script
+# exec's dbus-daemon, but the socket may not yet exist when localsettings
+# tries to call dbus.SystemBus(), causing a DBusException crash.
+until [ -S /run/dbus/system_bus_socket ]; do sleep 0.1; done
+
 exec python3 /opt/victron/localsettings/localsettings.py \
+    --path /data/conf \
     2>&1
