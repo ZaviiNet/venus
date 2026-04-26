@@ -23,6 +23,7 @@ ARG DBUS_SYSTEMCALC_PY_REF=master
 ARG DBUS_MQTT_REF=master
 ARG DBUS_RECORDER_REF=master
 ARG DBUS_MODBUS_CLIENT_REF=master
+ARG LOCALSETTINGS_REF=master
 
 RUN git clone --depth=1 --branch "${VELIB_PYTHON_REF}" \
         https://github.com/victronenergy/velib_python.git \
@@ -32,6 +33,8 @@ RUN git clone --depth=1 --branch "${VELIB_PYTHON_REF}" \
         https://github.com/victronenergy/dbus-mqtt.git \
     && git clone --depth=1 --branch "${DBUS_RECORDER_REF}" \
         https://github.com/victronenergy/dbus-recorder.git \
+    && git clone --depth=1 --branch "${LOCALSETTINGS_REF}" \
+        https://github.com/victronenergy/localsettings.git \
     && { git clone --depth=1 --branch "${DBUS_MODBUS_CLIENT_REF}" \
         https://github.com/victronenergy/dbus-modbus-client.git \
         || true; }   # dbus-modbus-client is optional; continue if unavailable
@@ -57,6 +60,7 @@ RUN apt-get update \
         gir1.2-glib-2.0 \
         libglib2.0-0 \
         python3-lxml \
+        python3-psutil \
         iproute2 \
         netcat-openbsd \
         socat \
@@ -86,7 +90,8 @@ RUN chmod a+x \
         /etc/s6-overlay/s6-rc.d/mosquitto/run \
         /etc/s6-overlay/s6-rc.d/dbus-systemcalc-py/run \
         /etc/s6-overlay/s6-rc.d/dbus-mqtt/run \
-    && mkdir -p /data/mosquitto/db /data/venus /etc/venus /etc/dbus-mqtt
+        /etc/s6-overlay/s6-rc.d/localsettings/run \
+    && mkdir -p /data/mosquitto/db /data/venus /etc/venus /etc/dbus-mqtt /data/conf
 
 # ── OCI labels ────────────────────────────────────────────────────────────────
 LABEL \

@@ -1,0 +1,10 @@
+#!/command/with-contenv bash
+# localsettings: provides com.victronenergy.settings on D-Bus.
+# dbus-systemcalc-py (and other Venus daemons) depend on this service being
+# present before they start; without it SettingsDevice raises an exception
+# and the daemon crashes immediately.
+export PYTHONPATH=/opt/victron/velib_python
+
+mkdir -p /data/conf
+exec python3 /opt/victron/localsettings/localsettings.py \
+    2>&1
