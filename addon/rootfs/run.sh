@@ -16,16 +16,22 @@ else
     bashio::log.info()    { echo "[INFO]  $*";  }
     bashio::log.warning() { echo "[WARN]  $*";  }
     bashio::log.error()   { echo "[ERROR] $*";  }
-    bashio::config() {
-        local key="$1"
-        jq -r ".\"${key}\" // empty" /data/options.json 2>/dev/null || echo ""
-    }
-    bashio::config.true() {
-        local val
-        val=$(jq -r ".\"$1\"" /data/options.json 2>/dev/null)
-        [ "${val}" = "true" ]
-    }
 fi
+
+# Always read addon config directly from /data/options.json via jq.
+# This avoids repeated "Unable to access the API, forbidden" errors that occur
+# when bashio::config tries to reach the Supervisor REST API and receives 403.
+# /data/options.json is written by the HA Supervisor before the addon starts
+# and is always available, even when the API role does not permit HTTP access.
+bashio::config() {
+    local key="$1"
+    jq -r ".\"${key}\" // empty" /data/options.json 2>/dev/null || echo ""
+}
+bashio::config.true() {
+    local val
+    val=$(jq -r ".\"$1\"" /data/options.json 2>/dev/null)
+    [ "${val}" = "true" ]
+}
 
 bashio::log.info "Starting Venus OS addon initialisation..."
 
