@@ -5,6 +5,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.0.5] – 2026-04-26
+
+### Fixed
+- Added `hassio_role: default` to `config.yaml` so the HA Supervisor no longer
+  returns 403 Forbidden when bashio reads addon options — eliminating the
+  repeated "Unable to access the API, forbidden" errors at startup.
+- Added the missing `localsettings` daemon (cloned from
+  `victronenergy/localsettings`) as a supervised s6 service that starts after
+  `dbus`.  Without it `dbus-systemcalc-py` crashed immediately because
+  `SettingsDevice` could not find `com.victronenergy.settings` on the bus.
+- Added `python3-psutil` system package required by `localsettings.py`.
+- Pre-create `/data/conf` directory in `run.sh` so `localsettings` can write
+  `settings.xml` on first boot.
+- Added `localsettings` as an explicit s6 dependency of `dbus-systemcalc-py`
+  to enforce correct startup ordering.
+
+---
+
 ## [1.0.0] – 2026-04-25
 
 ### Added
